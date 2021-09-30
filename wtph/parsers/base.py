@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Time: 2021/8/15 18:00
+import asyncio
 from typing import Type, List, Optional, TYPE_CHECKING, Any, Callable, Dict
 
 from pydantic import BaseModel, ValidationError
@@ -16,6 +17,12 @@ ParserType = Type["Parser"]
 
 class AsyncFlagMixin(object):
     is_async: bool
+
+    def __init_subclass__(cls, **kwargs):
+        if '_abstract' not in kwargs and not hasattr(cls, 'is_async'):
+            raise TypeError(
+                "subclass AsyncFlagMixin: <class `%s`> must specified `is_async` attribute" % cls.__name__
+            )
 
 
 def _is_subclass(obj, cls_tuple):
@@ -46,7 +53,7 @@ class ParserManager(AsyncFlagMixin):
         self._from_factory = from_factory
         self._parsers = self.get_parsers()
         self._depend_parsers: List["DependsParser"] = [
-            DependsParser.from_name_depend(name, depend, self)
+            self._from_factory.depend_parser_getter(name, depend, self)
             for name, depend in name_depend_map.items()
         ]
 
@@ -153,7 +160,12 @@ class AsyncParserManager(ParserManager):
         return data, errors
 
 
-class DependsParser(ParserManager):
+class DependsBase(object):
+    _name: str
+    _depend: Depends
+    __dependency: Callable
+    _parent: "ParserManager"
+
     def __init__(
             self,
             name: str,
@@ -177,25 +189,8 @@ class DependsParser(ParserManager):
     def parent(self):
         return self._parent
 
-    @classmethod
-    def from_name_depend(
-            cls,
-            name: str,
-            depend: Depends,
-            parent: "ParserManager",
-            from_factory: Optional["ParserManagerFactory"] = None
-    ):
-        model, name_depend_map = generate_model_from_callable(depend.dependency)
-        from_factory = from_factory or parent.from_factory
-        return cls(
-            name=name,
-            depend=depend,
-            parent=parent,
-            from_factory=from_factory,
-            name_depend_map=name_depend_map,
-            model=model,
-        )
 
+class DependsParser(DependsBase, ParserManager):
     def parse(self, *args, __depend_cache__, **kwargs):
         use_cache = self._depend.use_cache
         dependency = self._dependency
@@ -211,14 +206,54 @@ class DependsParser(ParserManager):
         return result, errors
 
 
+class AsyncDependsParser(DependsBase, AsyncParserManager):
+    is_async = True
+
+    async def parse(self, *args, __depend_cache__, **kwargs):
+        use_cache = self._depend.use_cache
+        dependency = self._dependency
+        key = dependency
+
+        if use_cache and key in __depend_cache__:
+            return __depend_cache__[key]
+
+        data, errors = await super().parse(*args, __depend_cache__=__depend_cache__, **kwargs)
+        result = await dependency(**data)
+        if use_cache:
+            __depend_cache__[key] = result
+        return result, errors
+
+
+def get_depend_parser(
+        name: str,
+        depend: Depends,
+        parent: "ParserManager",
+        from_factory: Optional["ParserManagerFactory"] = None
+):
+    model, name_depend_map = generate_model_from_callable(depend.dependency)
+    from_factory = from_factory or parent.from_factory
+    if asyncio.iscoroutinefunction(depend.dependency):
+        cls = AsyncDependsParser
+    else:
+        cls = DependsParser
+    return cls(
+        name=name,
+        depend=depend,
+        parent=parent,
+        from_factory=from_factory,
+        name_depend_map=name_depend_map,
+        model=model,
+    )
+
+
 class ParserManagerFactory(object):
     def __init__(
             self,
             parser_classes: Optional[Dict[str, ParserType]] = None,
-            depend_parser_class: Optional[ParserType] = None
+            depend_parser_getter: Optional[Callable] = None
     ):
         self.parser_classes = parser_classes or {}
-        self.depend_parser_class = depend_parser_class or DependsParser
+        self.depend_parser_getter = depend_parser_getter or get_depend_parser
 
     def register_parser(self, parser: ParserType) -> Callable:
         _check_parser(parser)
