@@ -59,8 +59,8 @@ class Config(object):
             from .parsers.flask import flask_parser_manager_factory as parser_factory
             from .injects.flask import flask_inject as inject
         elif mode == "sanic":
-            from .parsers.flask import flask_parser_manager_factory as parser_factory
-            from injects.sanic import sanic_inject as inject
+            from .parsers.sanic import sanic_parser_manager_factory as parser_factory
+            from .injects.sanic import sanic_inject as inject
         else:
             msg = "Don't support mode: '%s', only support mode: %s" \
                   " you can customize by config.customize_setup()" % (mode, SUPPORT_MODE)

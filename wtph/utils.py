@@ -67,7 +67,8 @@ def generate_model_from_callable(
 
     for name, param in parameters.items():
         if param.annotation is _empty:
-            raise TypeError("%s arg: %s missing annotation" % (get_name(f), name))
+            continue
+            # raise TypeError("%s arg: %s missing annotation" % (get_name(f), name))
         if param.default is _empty:
             raise ValueError("%s arg: %s not specified default" % (get_name(f), name))
 

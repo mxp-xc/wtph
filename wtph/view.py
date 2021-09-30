@@ -81,11 +81,10 @@ class View(object):
         values, errors = self.parser_manager.parse(*args, __depend_cache__={}, **kwargs)
         if errors:
             return self.validate_error_handler(errors)
-        kwargs.update(values)
-        return self.endpoint(*args, **kwargs)
+        return self.endpoint(**values)
 
     def default_validate_error_handler(self, errors):  # noqa
-        return jsonify(errors)
+        return errors
 
     validate_error_handler = default_validate_error_handler
 
@@ -96,9 +95,11 @@ class AsyncView(View):
     async def __call__(self, *args, **kwargs):
         values, errors = await self.parser_manager.parse(*args, __depend_cache__={}, **kwargs)
         if errors:
+            handler = self.validate_error_handler
+            if asyncio.iscoroutinefunction(handler):
+                return await handler(errors)
             return self.validate_error_handler(errors)
-        kwargs.update(values)
-        return await self.endpoint(*args, **kwargs)
+        return await self.endpoint(**values)
 
 
 def api(

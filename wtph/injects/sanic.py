@@ -2,10 +2,10 @@
 # @Time: 2021/9/30 21:59
 import asyncio
 import typing as t
-from functools import wraps
+import functools
 from typing import Optional, Iterable, Union, List
 
-from sanic import Sanic
+from sanic import Sanic, HTTPResponse
 
 from .base import BaseAppTypeHint
 
@@ -22,12 +22,16 @@ def sanic_inject(
         swagger_extra: t.Optional[dict] = None,
 ):
     from sanic.mixins.routes import RouteMixin
+    from sanic import json as json_response
+    from ..view import View
     from ..openapi import get_openapi
     from ..openapi.docs import get_swagger_ui_html
     sanic_route = RouteMixin.route
 
-    @wraps(sanic_route)
-    def route(
+    View.validate_error_handler = lambda self, errors: json_response(errors)
+
+    @functools.wraps(sanic_route)
+    def override_route(
             app: Sanic,
             uri: str,
             methods: t.Optional[t.Iterable[str]] = None,
@@ -36,9 +40,8 @@ def sanic_inject(
     ):
         def wrapper(handler):
             if methods is not None:
-                methods_ = frozenset(methods)
                 vc: "View"
-                if asyncio.iscoroutinefunction(methods_):
+                if asyncio.iscoroutinefunction(handler):
                     vc = cfg.async_view_class
                 else:
                     vc = cfg.view_class
@@ -47,7 +50,25 @@ def sanic_inject(
 
         return wrapper
 
-    RouteMixin.route = route
+    def method_wrapper(method_func):
+        @functools.wraps(method_func)
+        def f(*args, **kwargs):
+            methods = frozenset({method_func.__name__})
+            kwargs.pop("methods", None)
+            if len(args) <= 2:
+                kwargs["methods"] = methods
+            else:
+                args = list(args)
+                args.insert(1, methods)
+            return override_route(*args, **kwargs)
+
+        return f
+
+    RouteMixin.route = override_route
+    for m in (
+            "get", "post", "put", "head", "options", "patch", "delete",
+    ):
+        setattr(RouteMixin, m, method_wrapper(getattr(RouteMixin, m)))
 
     sanic_app: SanicTypeHint = cfg.app
     if sanic_app is not None:
@@ -57,21 +78,21 @@ def sanic_inject(
             openapi_extra.setdefault('version', '0.1')
             openapi_json = None
 
-            @sanic_app.get(openapi_url, view_config={"include_in_schema": False})
-            def get_openapi_json():
+            @sanic_route(sanic_app, openapi_url, ['GET'])
+            def get_openapi_json(request):  # noqa
                 nonlocal openapi_json
                 if openapi_json is not None:
                     return openapi_json
                 openapi_json = get_openapi(**openapi_extra)
-                return openapi_json
+                return json_response(openapi_json)
 
         if openapi_url and docs_url:
             swagger_extra = swagger_extra or {}
             swagger_extra.setdefault("title", "sanic")
 
-            @sanic_app.get(docs_url, view_config={"include_in_schema": False})
-            def get_docs():
-                return get_swagger_ui_html(openapi_url, **swagger_extra)
+            @sanic_route(sanic_app, docs_url, ['GET'])
+            def get_docs(request):  # noqa
+                return HTTPResponse(get_swagger_ui_html(openapi_url, **swagger_extra))
 
 
 class SanicTypeHint(Sanic, BaseAppTypeHint):
