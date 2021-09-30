@@ -2,7 +2,6 @@
 # @Time: 2021/9/21 14:11
 import functools
 import asyncio
-from types import MethodType
 from typing import Callable, Optional, Type, Iterable, List
 
 from flask import jsonify
@@ -15,6 +14,7 @@ view_set = set()
 
 
 class View(object):
+    is_async: bool = False
     def __init__(
             self,
             *,
@@ -58,25 +58,23 @@ class View(object):
             model_name=model_name
         )
         self.model = model
-        self.parser_manager: ParserManager = parser_factory(self.model, depend_funcs)
+        self.parser_manager: ParserManager = parser_factory(self, depend_funcs)
         if name is None:
             self.name = get_name(endpoint)
         else:
             self.name = name
-        functools.update_wrapper(self, endpoint)
         if path is not None:
             view_set.add(self)
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        return MethodType(self.__call__, instance)
 
     def __hash__(self):
         if self.path is None:
             return super().__hash__()
         flag = self.path + "_".join(sorted(self.methods))
         return hash(flag)
+
+    def partial(self):
+        func = functools.partial(self.__class__.__call__, self)
+        return functools.update_wrapper(func, self.endpoint)
 
     def __call__(self, *args, **kwargs):
         values, errors = self.parser_manager.parse(*args, __depend_cache__={}, **kwargs)
@@ -92,12 +90,14 @@ class View(object):
 
 
 class AsyncView(View):
+    is_async: bool = True
+
     async def __call__(self, *args, **kwargs):
         values, errors = await self.parser_manager.parse(*args, __depend_cache__={}, **kwargs)
         if errors:
             return self.validate_error_handler(errors)
         kwargs.update(values)
-        return self.endpoint(*args, **kwargs)
+        return await self.endpoint(*args, **kwargs)
 
 
 def api(
@@ -111,14 +111,15 @@ def api(
         parser_factory: Optional[ParserManagerFactory] = None,
         description: Optional[str] = None,
         include_in_schema: bool = True,
-        view_class: Type[View] = View,
-        async_view_class: Type[View] = AsyncView
+        view_class: Optional[Type[View]] = None,
+        async_view_class: Optional[Type[View]] = None
 ):
     def wrapper(f):
+        config._check()  # noqa
         if asyncio.iscoroutinefunction(f):
-            vc = AsyncView
+            vc = async_view_class or config.async_view_class
         else:
-            vc = view_class
+            vc = view_class or config.view_class
         return vc(
             endpoint=f,
             path=path,
@@ -131,7 +132,7 @@ def api(
             is_method=is_method,
             include_in_schema=include_in_schema,
             description=description
-        )
+        ).partial()
 
     return wrapper
 

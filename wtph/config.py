@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Time: 2021/9/22 12:23
-from functools import wraps
+import asyncio
 import typing as t
+from functools import wraps
 
 from .exceptions import ConfigError
 
@@ -16,7 +17,19 @@ class Config(object):
     def __init__(self):
         self.app = None
         self.view_class = None
+        self.async_view_class = None
         self.parser_factory = None
+
+    def _check(self):
+        required = set()
+        if self.view_class is None:
+            required.add("view_class")
+        if self.async_view_class is None:
+            required.add("async_view_class")
+        if self.parser_factory is None:
+            required.add("parser_factory")
+        if required:
+            raise ConfigError("config missing: %s, do you call setup_wtph()?" % required)
 
     def customize_setup(
             self,
@@ -25,11 +38,15 @@ class Config(object):
             inject: t.Optional[t.Callable] = None,
             inject_extra: t.Optional[dict] = None,
             view_class: t.Optional["View"] = None,
+            async_view_class: t.Optional["View"] = None
     ):
         self.parser_factory = parser_factory
         if view_class is None:
             from .view import View as view_class  # noqa
+        if async_view_class is None:
+            from .view import AsyncView as async_view_class  # noqa
         self.view_class = view_class
+        self.async_view_class = async_view_class
         if inject is not None:
             inject(self, **(inject_extra or {}))
 
@@ -78,7 +95,12 @@ def flask_inject(
     ):
         if methods is not None and view_func is not None:
             methods = set(methods)
-            view_func = cfg.view_class(endpoint=view_func, path=rule, methods=methods, **(view_config or {}))
+            vc: View
+            if asyncio.iscoroutinefunction(view_func):
+                vc = cfg.async_view_class
+            else:
+                vc = cfg.view_class
+            view_func = vc(endpoint=view_func, path=rule, methods=methods, **(view_config or {})).partial()
         return flask_add_url_rule(app, rule, endpoint, view_func, methods=methods, **options)
 
     Flask.add_url_rule = add_url_rule

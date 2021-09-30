@@ -11,6 +11,7 @@ from ..params import Depends, Param
 
 if TYPE_CHECKING:
     from pydantic.main import Model  # noqa
+    from ..view import View
 
 ParserType = Type["Parser"]
 
@@ -139,10 +140,11 @@ class AsyncParserManager(ParserManager):
         errors = []
         if self.has_common_parser():
             for parser in self._parsers:
-                if parser.is_async:
-                    values = await parser.parse(*args, **kwargs)
+                parse_meth = parser.parse
+                if asyncio.iscoroutinefunction(parse_meth):
+                    values = await parse_meth(*args, **kwargs)
                 else:
-                    values = parser.parse(*args, **kwargs)
+                    values = parse_meth(*args, **kwargs)
                 data.update(values)
             data, errors_ = self._validate(data)
             if errors_:
@@ -150,10 +152,11 @@ class AsyncParserManager(ParserManager):
 
         if self.has_depend_parser():
             for parser in self._depend_parsers:
-                if parser.is_async:
-                    result, errors_ = await parser.parse(*args, __depend_cache__=__depend_cache__, **kwargs)
+                parse_meth = parser.parse
+                if asyncio.iscoroutinefunction(parse_meth):
+                    result, errors_ = await parse_meth(*args, __depend_cache__=__depend_cache__, **kwargs)
                 else:
-                    result, errors_ = parser.parse(*args, __depend_cache__=__depend_cache__, **kwargs)
+                    result, errors_ = parse_meth(*args, __depend_cache__=__depend_cache__, **kwargs)
                 if errors_:
                     errors.extend(errors_)
                 data[parser.name] = result
@@ -262,8 +265,10 @@ class ParserManagerFactory(object):
         self.parser_classes[name.lower()] = parser
         return parser
 
-    def __call__(self, model: Type[BaseModel], name_depend_map) -> ParserManager:
-        return ParserManager(model, self, name_depend_map)
+    def __call__(self, view: "View", name_depend_map) -> ParserManager:
+        if view.is_async:
+            return AsyncParserManager(view.model, self, name_depend_map)
+        return ParserManager(view.model, self, name_depend_map)
 
 
 class Parser(AsyncFlagMixin):
