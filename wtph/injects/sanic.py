@@ -57,7 +57,7 @@ def sanic_inject(
             openapi_extra.setdefault('version', '0.1')
             openapi_json = None
 
-            @sanic_app.get(openapi_url, view_config={"include_in_schema": False})  # noqa
+            @sanic_app.get(openapi_url, view_config={"include_in_schema": False})
             def get_openapi_json():
                 nonlocal openapi_json
                 if openapi_json is not None:
@@ -69,7 +69,7 @@ def sanic_inject(
             swagger_extra = swagger_extra or {}
             swagger_extra.setdefault("title", "sanic")
 
-            @sanic_app.get(docs_url, view_config={"include_in_schema": False})  # noqa
+            @sanic_app.get(docs_url, view_config={"include_in_schema": False})
             def get_docs():
                 return get_swagger_ui_html(openapi_url, **swagger_extra)
 
@@ -82,29 +82,75 @@ class SanicTypeHint(Sanic, BaseAppTypeHint):
     def route(
             self,
             uri: str,
-            methods: t.Optional[t.Iterable[str]] = None,
+            methods: Optional[Iterable[str]] = None,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            stream: bool = False,
+            version: Optional[Union[int, str, float]] = None,
+            name: Optional[str] = None,
+            ignore_body: bool = False,
+            apply: bool = True,
+            subprotocols: Optional[List[str]] = None,
+            websocket: bool = False,
+            unquote: bool = False,
+            static: bool = False,
+            version_prefix: str = "/v",
             view_config: t.Optional[dict] = None,
-            **options,
     ):
         pass
 
-    def add_route(self, handler, uri: str, methods: Iterable[str] = frozenset({"GET"}), host: Optional[str] = None,
-                  strict_slashes: Optional[bool] = None, version: Optional[int] = None, name: Optional[str] = None,
-                  stream: bool = False, version_prefix: str = "/v"):
-        return super().add_route(handler, uri, methods, host, strict_slashes, version, name, stream, version_prefix)
+    def add_route(
+            self,
+            handler,
+            uri: str,
+            methods: Iterable[str] = frozenset({"GET"}),
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            stream: bool = False, version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ) -> t.Callable:
+        pass
 
-    def get(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
-            version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
-            version_prefix: str = "/v"):
+    def get(
+            self,
+            uri: str,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            ignore_body: bool = True,
+            version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ):
         return super().get(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
 
-    def post(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None, stream: bool = False,
-             version: Optional[int] = None, name: Optional[str] = None, version_prefix: str = "/v"):
-        return super().post(uri, host, strict_slashes, stream, version, name, version_prefix)
+    def post(
+            self,
+            uri: str,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            stream: bool = False,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ):
+        pass
 
-    def put(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None, stream: bool = False,
-            version: Optional[int] = None, name: Optional[str] = None, version_prefix: str = "/v"):
-        return super().put(uri, host, strict_slashes, stream, version, name, version_prefix)
+    def put(
+            self,
+            uri: str,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            stream: bool = False,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ):
+        pass
 
     def head(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
              version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
