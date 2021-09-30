@@ -2,9 +2,10 @@
 # @Time: 2021/8/13 21:15
 import asyncio
 from flask import Flask
-from wtph import Query, setup_wtph, Depends
+from wtph import Query, setup_wtph
+from wtph.injects.flask import type_hint
 
-app = Flask(__name__)
+app = type_hint(Flask(__name__))
 setup_wtph("flask", app=app)
 
 

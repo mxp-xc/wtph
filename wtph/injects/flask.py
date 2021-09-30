@@ -71,10 +71,6 @@ def flask_inject(
                 return get_swagger_ui_html(openapi_url, **swagger_extra)
 
 
-def type_hint(app) -> "FlaskTypeHint":
-    return app
-
-
 class FlaskTypeHint(Flask, BaseAppTypeHint):
     def get(
             self,
@@ -133,3 +129,7 @@ class FlaskTypeHint(Flask, BaseAppTypeHint):
             **options: t.Any,
     ):
         pass
+
+
+def type_hint(app) -> FlaskTypeHint:
+    return app

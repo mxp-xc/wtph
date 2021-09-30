@@ -74,10 +74,6 @@ def sanic_inject(
                 return get_swagger_ui_html(openapi_url, **swagger_extra)
 
 
-def type_hint(app):
-    return app
-
-
 class SanicTypeHint(Sanic, BaseAppTypeHint):
     def route(
             self,
@@ -96,7 +92,7 @@ class SanicTypeHint(Sanic, BaseAppTypeHint):
             static: bool = False,
             version_prefix: str = "/v",
             view_config: t.Optional[dict] = None,
-    ):
+    ) -> t.Callable:
         pass
 
     def add_route(
@@ -110,7 +106,7 @@ class SanicTypeHint(Sanic, BaseAppTypeHint):
             name: Optional[str] = None,
             stream: bool = False, version_prefix: str = "/v",
             view_config: t.Optional[dict] = None,
-    ) -> t.Callable:
+    ):
         pass
 
     def get(
@@ -123,8 +119,8 @@ class SanicTypeHint(Sanic, BaseAppTypeHint):
             ignore_body: bool = True,
             version_prefix: str = "/v",
             view_config: t.Optional[dict] = None,
-    ):
-        return super().get(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
+    ) -> t.Callable:
+        pass
 
     def post(
             self,
@@ -136,7 +132,7 @@ class SanicTypeHint(Sanic, BaseAppTypeHint):
             name: Optional[str] = None,
             version_prefix: str = "/v",
             view_config: t.Optional[dict] = None,
-    ):
+    ) -> t.Callable:
         pass
 
     def put(
@@ -149,24 +145,61 @@ class SanicTypeHint(Sanic, BaseAppTypeHint):
             name: Optional[str] = None,
             version_prefix: str = "/v",
             view_config: t.Optional[dict] = None,
-    ):
+    ) -> t.Callable:
         pass
 
-    def head(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
-             version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
-             version_prefix: str = "/v"):
-        return super().head(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
+    def head(
+            self,
+            uri: str,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            ignore_body: bool = True,
+            version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ) -> t.Callable:
+        pass
 
-    def options(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
-                version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
-                version_prefix: str = "/v"):
-        return super().options(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
+    def options(
+            self,
+            uri: str,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            ignore_body: bool = True,
+            version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ) -> t.Callable:
+        pass
 
-    def patch(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None, stream=False,
-              version: Optional[int] = None, name: Optional[str] = None, version_prefix: str = "/v"):
-        return super().patch(uri, host, strict_slashes, stream, version, name, version_prefix)
+    def patch(
+            self,
+            uri: str,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            stream=False,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ) -> t.Callable:
+        pass
 
-    def delete(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
-               version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
-               version_prefix: str = "/v"):
-        return super().delete(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
+    def delete(
+            self,
+            uri: str,
+            host: Optional[str] = None,
+            strict_slashes: Optional[bool] = None,
+            version: Optional[int] = None,
+            name: Optional[str] = None,
+            ignore_body: bool = True,
+            version_prefix: str = "/v",
+            view_config: t.Optional[dict] = None,
+    ) -> t.Callable:
+        pass
+
+
+def type_hint(app) -> SanicTypeHint:
+    return app
