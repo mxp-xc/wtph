@@ -20,7 +20,6 @@ def flask_inject(
         openapi_extra: t.Optional[dict] = None,
         swagger_extra: t.Optional[dict] = None,
 ):
-    from flask import Flask
     from ..openapi import get_openapi
     from ..openapi.docs import get_swagger_ui_html
     flask_add_url_rule = Flask.add_url_rule
@@ -47,7 +46,7 @@ def flask_inject(
 
     Flask.add_url_rule = add_url_rule
 
-    flask_app: Flask = cfg.app
+    flask_app: FlaskTypeHint = cfg.app
     if flask_app is not None:
         if openapi_url:
             openapi_extra = openapi_extra or {}

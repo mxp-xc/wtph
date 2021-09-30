@@ -3,22 +3,27 @@
 import asyncio
 import typing as t
 from functools import wraps
+from typing import Optional, Iterable, Union, List
 
-from wtph import View
-from wtph.config import Config
+from sanic import Sanic
+
+from .base import BaseAppTypeHint
+
+if t.TYPE_CHECKING:
+    from wtph import View
+    from wtph.config import Config
 
 
 def sanic_inject(
-        cfg: Config,
+        cfg: "Config",
         openapi_url: t.Optional[str] = "/openapi.json",
         docs_url: t.Optional[str] = "/docs",
         openapi_extra: t.Optional[dict] = None,
         swagger_extra: t.Optional[dict] = None,
 ):
-    from sanic import Sanic
     from sanic.mixins.routes import RouteMixin
-    from .openapi import get_openapi
-    from .openapi.docs import get_swagger_ui_html
+    from ..openapi import get_openapi
+    from ..openapi.docs import get_swagger_ui_html
     sanic_route = RouteMixin.route
 
     @wraps(sanic_route)
@@ -32,7 +37,7 @@ def sanic_inject(
         def wrapper(handler):
             if methods is not None:
                 methods_ = frozenset(methods)
-                vc: View
+                vc: "View"
                 if asyncio.iscoroutinefunction(methods_):
                     vc = cfg.async_view_class
                 else:
@@ -44,7 +49,7 @@ def sanic_inject(
 
     RouteMixin.route = route
 
-    sanic_app: Sanic = cfg.app
+    sanic_app: SanicTypeHint = cfg.app
     if sanic_app is not None:
         if openapi_url:
             openapi_extra = openapi_extra or {}
@@ -67,3 +72,55 @@ def sanic_inject(
             @sanic_app.get(docs_url, view_config={"include_in_schema": False})  # noqa
             def get_docs():
                 return get_swagger_ui_html(openapi_url, **swagger_extra)
+
+
+def type_hint(app):
+    return app
+
+
+class SanicTypeHint(Sanic, BaseAppTypeHint):
+    def route(
+            self,
+            uri: str,
+            methods: t.Optional[t.Iterable[str]] = None,
+            view_config: t.Optional[dict] = None,
+            **options,
+    ):
+        pass
+
+    def add_route(self, handler, uri: str, methods: Iterable[str] = frozenset({"GET"}), host: Optional[str] = None,
+                  strict_slashes: Optional[bool] = None, version: Optional[int] = None, name: Optional[str] = None,
+                  stream: bool = False, version_prefix: str = "/v"):
+        return super().add_route(handler, uri, methods, host, strict_slashes, version, name, stream, version_prefix)
+
+    def get(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
+            version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
+            version_prefix: str = "/v"):
+        return super().get(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
+
+    def post(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None, stream: bool = False,
+             version: Optional[int] = None, name: Optional[str] = None, version_prefix: str = "/v"):
+        return super().post(uri, host, strict_slashes, stream, version, name, version_prefix)
+
+    def put(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None, stream: bool = False,
+            version: Optional[int] = None, name: Optional[str] = None, version_prefix: str = "/v"):
+        return super().put(uri, host, strict_slashes, stream, version, name, version_prefix)
+
+    def head(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
+             version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
+             version_prefix: str = "/v"):
+        return super().head(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
+
+    def options(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
+                version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
+                version_prefix: str = "/v"):
+        return super().options(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
+
+    def patch(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None, stream=False,
+              version: Optional[int] = None, name: Optional[str] = None, version_prefix: str = "/v"):
+        return super().patch(uri, host, strict_slashes, stream, version, name, version_prefix)
+
+    def delete(self, uri: str, host: Optional[str] = None, strict_slashes: Optional[bool] = None,
+               version: Optional[int] = None, name: Optional[str] = None, ignore_body: bool = True,
+               version_prefix: str = "/v"):
+        return super().delete(uri, host, strict_slashes, version, name, ignore_body, version_prefix)
