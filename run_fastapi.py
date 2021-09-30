@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Time: 2021/9/21 14:29
-from fastapi import FastAPI, Query, Depends
+from fastapi import FastAPI, Query, Form
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -17,10 +17,10 @@ def depend(
     return b
 
 
-@app.get("/")
+@app.post("/")
 async def index(
         c: str,
-        a: int = Query(...),
+        a: int = Form(...),
 ):
     pass
 

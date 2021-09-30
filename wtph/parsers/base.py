@@ -14,6 +14,10 @@ if TYPE_CHECKING:
 ParserType = Type["Parser"]
 
 
+class AsyncFlagMixin(object):
+    is_async: bool
+
+
 def _is_subclass(obj, cls_tuple):
     return isinstance(obj, type) and issubclass(obj, cls_tuple)
 
@@ -29,7 +33,9 @@ def _check_parser(parser: ParserType):
         raise TypeError("parser(%s).param_class must be a subclass of FieldInfo" % parser)
 
 
-class ParserManager(object):
+class ParserManager(AsyncFlagMixin):
+    is_async = False  # sync
+
     def __init__(
             self,
             model: Type[BaseModel],
@@ -88,21 +94,26 @@ class ParserManager(object):
                     return parser
         return None
 
+    def _validate(self, data):
+        try:
+            return self._model(**data).dict(), None
+        except ValidationError as e:
+            errors = e.errors()
+            for err in errors:
+                field_name = err['loc'][0]
+                parser = self.get_parser_by_field_name(field_name)
+                assert parser is not None
+                err['loc'] = (parser.param_class.__name__.lower(), field_name)
+            return data, errors
+
     def parse(self, *args, __depend_cache__, **kwargs):
         data = {}
         errors = []
         if self.has_common_parser():
             for parser in self._parsers:
                 data.update(parser.parse(*args, **kwargs))
-            try:
-                data = self._model(**data).dict()
-            except ValidationError as e:
-                errors_ = e.errors()
-                for err in errors_:
-                    field_name = err['loc'][0]
-                    parser = self.get_parser_by_field_name(field_name)
-                    assert parser is not None
-                    err['loc'] = (parser.param_class.__name__.lower(), field_name)
+            data, errors_ = self._validate(data)
+            if errors_:
                 errors.extend(errors_)
         if self.has_depend_parser():
             for parser in self._depend_parsers:
@@ -113,9 +124,36 @@ class ParserManager(object):
         return data, errors
 
 
-class DependsParser(ParserManager):
-    __depend_parser__ = True
+class AsyncParserManager(ParserManager):
+    is_async = True  # async
 
+    async def parse(self, *args, __depend_cache__, **kwargs):
+        data = {}
+        errors = []
+        if self.has_common_parser():
+            for parser in self._parsers:
+                if parser.is_async:
+                    values = await parser.parse(*args, **kwargs)
+                else:
+                    values = parser.parse(*args, **kwargs)
+                data.update(values)
+            data, errors_ = self._validate(data)
+            if errors_:
+                errors.extend(errors_)
+
+        if self.has_depend_parser():
+            for parser in self._depend_parsers:
+                if parser.is_async:
+                    result, errors_ = await parser.parse(*args, __depend_cache__=__depend_cache__, **kwargs)
+                else:
+                    result, errors_ = parser.parse(*args, __depend_cache__=__depend_cache__, **kwargs)
+                if errors_:
+                    errors.extend(errors_)
+                data[parser.name] = result
+        return data, errors
+
+
+class DependsParser(ParserManager):
     def __init__(
             self,
             name: str,
@@ -193,7 +231,8 @@ class ParserManagerFactory(object):
         return ParserManager(model, self, name_depend_map)
 
 
-class Parser(object):
+class Parser(AsyncFlagMixin):
+    is_async = False
     param_class: Type[Param]
 
     def __init__(self, fields: List[ModelField], manager: ParserManager):

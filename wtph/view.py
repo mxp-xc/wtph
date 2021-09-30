@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Time: 2021/9/21 14:11
 import functools
+import asyncio
 from types import MethodType
 from typing import Callable, Optional, Type, Iterable, List
 
@@ -90,6 +91,15 @@ class View(object):
     validate_error_handler = default_validate_error_handler
 
 
+class AsyncView(View):
+    async def __call__(self, *args, **kwargs):
+        values, errors = await self.parser_manager.parse(*args, __depend_cache__={}, **kwargs)
+        if errors:
+            return self.validate_error_handler(errors)
+        kwargs.update(values)
+        return self.endpoint(*args, **kwargs)
+
+
 def api(
         path: Optional[str] = None,
         methods: Optional[Iterable[str]] = None,
@@ -101,10 +111,15 @@ def api(
         parser_factory: Optional[ParserManagerFactory] = None,
         description: Optional[str] = None,
         include_in_schema: bool = True,
-        view_class: Type[View] = View
+        view_class: Type[View] = View,
+        async_view_class: Type[View] = AsyncView
 ):
     def wrapper(f):
-        return view_class(
+        if asyncio.iscoroutinefunction(f):
+            vc = AsyncView
+        else:
+            vc = view_class
+        return vc(
             endpoint=f,
             path=path,
             name=name,

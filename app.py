@@ -13,7 +13,7 @@ def f():
     return "1"
 
 
-@app.get("/")
+@app.get("/", view_config={"description": "描述123"})
 def f(
         b: str = Query(...),
 ):

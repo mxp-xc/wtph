@@ -44,10 +44,9 @@ class Config(object):
             from .parsers.flask import flask_parser_manager_factory as parser_factory
             inject = flask_inject
         else:
-            msg = """
-                don't support mode: %s, only support mode: %s
-                you can customize by config.customize_setup()
-            """ % (mode, SUPPORT_MODE)
+            msg = "Don't support mode: '%s', only support mode: %s" \
+                  " you can customize by config.customize_setup()" % (mode, SUPPORT_MODE)
+
             raise ConfigError(msg)
         self.customize_setup(parser_factory, inject=inject, inject_extra=inject_extra)  # noqa
 
