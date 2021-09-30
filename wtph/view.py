@@ -15,6 +15,7 @@ view_set = set()
 
 class View(object):
     is_async: bool = False
+
     def __init__(
             self,
             *,
@@ -36,7 +37,7 @@ class View(object):
         if path is None:
             include_in_schema = False
         self.path = path
-        self.methods = set(methods) if methods is not None else None
+        self.methods = frozenset(methods) if methods is not None else None
         self.deprecated = deprecated
         self.include_in_schema = include_in_schema
         self.summary = summary
